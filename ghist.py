@@ -43,7 +43,7 @@ class MossrankingSync(commands.Cog):
 
         return user_ids
 
-    @tasks.loop(seconds=60.0)
+    @tasks.loop(seconds=1800.0)
     async def syncer(self):
         guild = self.bot.get_guild(self.guild_id)
         if not guild:
