@@ -25,7 +25,11 @@ def get_author_colors(ctx):
     return get_colors_roles(ctx.author.roles)
 
 
-@commands.command()
+@commands.command(
+    help="Set the color of your name.",
+    brief="Set the color of your name.",
+    usage="color_name",
+)
 async def color(ctx, *args):
     # Check that the user passed a color at all
     if not args:
@@ -68,7 +72,12 @@ def main():
     )
     args = parser.parse_args()
 
-    ghist = commands.Bot(command_prefix=args.prefix)
+    # Change only the no_category default string
+    help_command = commands.DefaultHelpCommand(
+        no_category = 'Commands'
+    )
+
+    ghist = commands.Bot(command_prefix=args.prefix, help_command=help_command)
     ghist.add_command(color)
     ghist.add_check(globally_block_dms)
     ghist.run(TOKEN)
