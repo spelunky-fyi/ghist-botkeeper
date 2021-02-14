@@ -17,6 +17,8 @@ from discord.ext import commands, tasks
 TOKEN = os.environ["GHIST_BOT_TOKEN"]
 MR_SYNC_KEY = os.environ["MR_SYNC_KEY"]
 COLOR_PREFIX = "Color: "
+PRONOUNS_PREFIX = "Pronouns: "
+
 
 # Mapping of guild to list of channels where the bot will respond.
 # If guild not found or channel list is empty then the bot will
@@ -225,6 +227,67 @@ class Color(commands.Cog):
         await ctx.message.add_reaction("👍")
 
 
+class Pronouns(commands.Cog):
+    def __init__(self, bot):
+        self.bot = bot
+
+    @staticmethod
+    def get_pronouns_roles(roles):
+        pronouns = {}
+        for role in roles:
+            if role.name.startswith(PRONOUNS_PREFIX):
+                pronouns[role.name[len(PRONOUNS_PREFIX) :].lower()] = role
+        return pronouns
+
+    def get_guild_pronouns(self, ctx):
+        return self.get_pronouns_roles(ctx.guild.roles)
+
+    def get_author_pronouns(self, ctx):
+        return self.get_pronouns_roles(ctx.author.roles)
+
+    @commands.command(
+        help="Set the pronouns you prefer.",
+        brief="Set the prnouns you prefer.",
+        usage="pronouns",
+    )
+    async def pronouns(self, ctx, *args):
+        # Check that the user passed pronouns at all
+        if not args:
+            await ctx.send("See pins for available pronouns.")
+            return
+
+        requested_pronouns = [arg.strip().lower() for arg in args]
+        available_pronouns = self.get_guild_pronouns(ctx)
+        target_pronouns = []
+        unavailable_pronouns = []
+
+        # Check that the requested pronouns are available.
+        for pronouns in requested_pronouns:
+            target = available_pronouns.get(pronouns)
+            if target is None:
+                unavailable_pronouns.append(pronouns)
+            else:
+                target_pronouns.append(target)
+
+        if unavailable_pronouns:
+            pronouns = ", ".join(f"`{pronoun}`" for pronoun in unavailable_pronouns)
+            await ctx.send(
+                f"The following pronouns aren't available: {pronouns}. See pins for available pronouns."
+            )
+            return
+
+        # Give requested pronoun roles.
+        await ctx.author.add_roles(*target_pronouns)
+
+        # Remove any pronoun roles that weren't specified.
+        roles_to_remove = set(self.get_author_pronouns(ctx).values())
+        roles_to_remove.difference_update(target_pronouns)
+        if roles_to_remove:
+            await ctx.author.remove_roles(*roles_to_remove)
+
+        await ctx.message.add_reaction("👍")
+
+
 async def globally_block_dms(ctx):
     return ctx.guild is not None
 
@@ -279,6 +342,7 @@ def main():
 
     # Cog Setup
     ghist.add_cog(Color(ghist))
+    ghist.add_cog(Pronouns(ghist))
 
     if config.get("mr-sync"):
         ghist.add_cog(
