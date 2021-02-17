@@ -251,13 +251,17 @@ class Pronouns(commands.Cog):
         usage="pronouns",
     )
     async def pronouns(self, ctx, *args):
+        available_pronouns = self.get_guild_pronouns(ctx)
         # Check that the user passed pronouns at all
         if not args:
-            await ctx.send("See pins for available pronouns.")
+            await ctx.send(
+                "Available pronouns: {}".format(
+                    ", ".join(f"`{pronoun}`" for pronoun in available_pronouns)
+                )
+            )
             return
 
         requested_pronouns = [arg.strip().lower() for arg in args]
-        available_pronouns = self.get_guild_pronouns(ctx)
         target_pronouns = []
         unavailable_pronouns = []
 
@@ -272,7 +276,11 @@ class Pronouns(commands.Cog):
         if unavailable_pronouns:
             pronouns = ", ".join(f"`{pronoun}`" for pronoun in unavailable_pronouns)
             await ctx.send(
-                f"The following pronouns aren't available: {pronouns}. See pins for available pronouns."
+                "You've specified an unavailable pronoun. If you think this pronoun "
+                "should be available please message a moderator to get it added. "
+                "Available pronouns are: {}".format(
+                    ", ".join(f"`{pronoun}`" for pronoun in available_pronouns)
+                )
             )
             return
 
