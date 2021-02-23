@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import re
+import random
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
@@ -27,6 +28,21 @@ VALID_CHANNELS = defaultdict(list)
 
 MR_SYNC_ENDPOINT = "https://mossranking.com/api/getdiscordusers.php"
 GAMES_RE = re.compile(r"^games\[([A-Za-z0-9 ]+)\]$")
+
+
+async def globally_block_dms(ctx):
+    return ctx.guild is not None
+
+
+async def check_valid_channels(ctx):
+    if ctx.guild is None:
+        return False
+
+    channels = VALID_CHANNELS.get(str(ctx.guild.id))
+    if not channels:
+        return True
+
+    return str(ctx.message.channel.id) in channels
 
 
 @dataclass
@@ -196,6 +212,7 @@ class Color(commands.Cog):
         brief="Set the color of your name.",
         usage="color_name",
     )
+    @commands.check(check_valid_channels)
     async def color(self, ctx, *args):
         # Check that the user passed a color at all
         if not args:
@@ -247,9 +264,10 @@ class Pronouns(commands.Cog):
 
     @commands.command(
         help="Set the pronouns you prefer.",
-        brief="Set the prnouns you prefer.",
+        brief="Set the pronouns you prefer.",
         usage="pronouns",
     )
+    @commands.check(check_valid_channels)
     async def pronouns(self, ctx, *args):
         available_pronouns = self.get_guild_pronouns(ctx)
         # Check that the user passed pronouns at all
@@ -296,19 +314,63 @@ class Pronouns(commands.Cog):
         await ctx.message.add_reaction("👍")
 
 
-async def globally_block_dms(ctx):
-    return ctx.guild is not None
+TYPE_TO_ADJECTIVES = {
+    "style": ["cracked", "tall", "smiling", "simple"],
+    "material": ["clay", "gold", "jade", "wood", "onyx"],
+    "symbol": ["eye", "ankh", "snake", "vortex", "bat"],
+}
 
 
-async def check_valid_channels(ctx):
-    if ctx.guild is None:
-        return False
+def invert_adjective_map(dict_):
+    out = {}
+    for type_, adjectives in dict_.items():
+        for adjective in adjectives:
+            out[adjective] = type_
+    return out
 
-    channels = VALID_CHANNELS.get(str(ctx.guild.id))
-    if not channels:
-        return True
 
-    return str(ctx.message.channel.id) in channels
+ADJECTIVE_TO_TYPE = invert_adjective_map(TYPE_TO_ADJECTIVES)
+
+USHABTI_URL = (
+    "https://cdn.spelunky.fyi/static/images/ushabti/{style}-{material}-{symbol}.png"
+)
+
+
+class Ushabti(commands.Cog):
+    def __init__(self, bot):
+        self.bot = bot
+
+    @commands.command(
+        help="Display an ushabti.",
+        brief="Display an ushabti.",
+        usage="[adjective] [adjective] [adjective]",
+    )
+    async def ushabti(self, ctx, adj1=None, adj2=None, adj3=None):
+        adjectives = {
+            "style": None,
+            "material": None,
+            "symbol": None,
+        }
+
+        for adj in [adj1, adj2, adj3]:
+            if adj is None:
+                continue
+            type_ = ADJECTIVE_TO_TYPE.get(adj)
+            if type_ is None:
+                await ctx.send(f"Provided unknown value `{adj}`")
+                return
+
+            if adjectives[type_] is not None:
+                await ctx.send(f"Provided more than one value of type {type_}")
+                return
+
+            adjectives[type_] = adj
+
+        for type_, adj in adjectives.items():
+            if adj is None:
+                adjectives[type_] = random.choice(TYPE_TO_ADJECTIVES[type_])
+
+        await ctx.send(USHABTI_URL.format(**adjectives))
 
 
 def parse_config(config_path):
@@ -351,6 +413,7 @@ def main():
     # Cog Setup
     ghist.add_cog(Color(ghist))
     ghist.add_cog(Pronouns(ghist))
+    ghist.add_cog(Ushabti(ghist))
 
     if config.get("mr-sync"):
         ghist.add_cog(
@@ -364,7 +427,6 @@ def main():
 
     # Global Checks
     ghist.add_check(globally_block_dms)
-    ghist.add_check(check_valid_channels)
 
     ghist.run(TOKEN)
 
