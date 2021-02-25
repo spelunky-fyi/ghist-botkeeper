@@ -1,10 +1,10 @@
 import argparse
-import asyncio
 import json
 import logging
 import os
 import re
 import random
+import datetime
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
@@ -366,9 +366,13 @@ class Ushabti(commands.Cog):
 
             adjectives[type_] = adj
 
+        today = datetime.datetime.utcnow()
+        seed = f"{today.year:04}{today.month:02}{today.day:02}"
         for type_, adj in adjectives.items():
             if adj is None:
-                adjectives[type_] = random.choice(TYPE_TO_ADJECTIVES[type_])
+                adjectives[type_] = random.Random(seed).choice(
+                    TYPE_TO_ADJECTIVES[type_]
+                )
 
         await ctx.send(USHABTI_URL.format(**adjectives))
 
