@@ -367,7 +367,7 @@ class Ushabti(commands.Cog):
             adjectives[type_] = adj
 
         today = datetime.datetime.utcnow()
-        seed = f"{today.year:04}{today.month:02}{today.day:02}"
+        seed = int(f"{today.year:04}{today.month:02}{today.day:02}")
         for type_, adj in adjectives.items():
             if adj is None:
                 adjectives[type_] = random.Random(seed).choice(
