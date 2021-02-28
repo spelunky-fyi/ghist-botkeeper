@@ -13,8 +13,10 @@ from typing import Dict
 import aiohttp
 import discord
 from discord.ext import commands, tasks
+from dotenv import load_dotenv
 
 
+load_dotenv("ghist-bot.env")
 TOKEN = os.environ["GHIST_BOT_TOKEN"]
 MR_SYNC_KEY = os.environ["MR_SYNC_KEY"]
 COLOR_PREFIX = "Color: "
