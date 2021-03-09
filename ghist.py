@@ -26,7 +26,7 @@ PRONOUNS_PREFIX = "Pronouns: "
 # Mapping of guild to list of channels where the bot will respond.
 # If guild not found or channel list is empty then the bot will
 # respond in all channels.
-VALID_CHANNELS = defaultdict(list)
+SUPPORT_CHANNELS = defaultdict(list)
 
 MR_SYNC_ENDPOINT = "https://mossranking.com/api/getdiscordusers.php"
 GAMES_RE = re.compile(r"^games\[([A-Za-z0-9 ]+)\]$")
@@ -36,15 +36,20 @@ async def globally_block_dms(ctx):
     return ctx.guild is not None
 
 
-async def check_valid_channels(ctx):
+async def is_support_channel(ctx):
     if ctx.guild is None:
         return False
 
-    channels = VALID_CHANNELS.get(str(ctx.guild.id))
-    if not channels:
-        return True
-
+    channels = SUPPORT_CHANNELS.get(str(ctx.guild.id))
     return str(ctx.message.channel.id) in channels
+
+
+async def not_support_channel(ctx):
+    if ctx.guild is None:
+        return False
+
+    channels = SUPPORT_CHANNELS.get(str(ctx.guild.id))
+    return str(ctx.message.channel.id) not in channels
 
 
 @dataclass
@@ -214,7 +219,7 @@ class Color(commands.Cog):
         brief="Set the color of your name.",
         usage="color_name",
     )
-    @commands.check(check_valid_channels)
+    @commands.check(is_support_channel)
     async def color(self, ctx, *args):
         # Check that the user passed a color at all
         if not args:
@@ -269,7 +274,7 @@ class Pronouns(commands.Cog):
         brief="Set the pronouns you prefer.",
         usage="pronouns",
     )
-    @commands.check(check_valid_channels)
+    @commands.check(is_support_channel)
     async def pronouns(self, ctx, *args):
         available_pronouns = self.get_guild_pronouns(ctx)
         # Check that the user passed pronouns at all
@@ -347,6 +352,7 @@ class Ushabti(commands.Cog):
         brief="Display an ushabti.",
         usage="[adjective] [adjective] [adjective]",
     )
+    @commands.check(not_support_channel)
     async def ushabti(self, ctx, adj1=None, adj2=None, adj3=None):
         adjectives = {
             "style": None,
@@ -383,8 +389,8 @@ def parse_config(config_path):
     with config_path.open("r") as config_file:
         data = json.load(config_file)
 
-    for guild, channels in data.get("valid-channels", {}).items():
-        VALID_CHANNELS[guild] = channels
+    for guild, channels in data.get("support-channels", {}).items():
+        SUPPORT_CHANNELS[guild] = channels
 
     return data
 
