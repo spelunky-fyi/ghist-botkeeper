@@ -2,11 +2,13 @@ import argparse
 import json
 import logging
 import os
+import io
 import re
 import random
 import datetime
 from collections import defaultdict
 from dataclasses import dataclass
+from math import ceil
 from pathlib import Path
 from typing import Dict
 
@@ -14,6 +16,8 @@ import aiohttp
 import discord
 from discord.ext import commands, tasks
 from dotenv import load_dotenv
+from ttf_opensans import opensans
+from PIL import Image, ImageDraw
 
 
 load_dotenv("ghist-bot.env")
@@ -21,6 +25,83 @@ TOKEN = os.environ["GHIST_BOT_TOKEN"]
 MR_SYNC_KEY = os.environ["MR_SYNC_KEY"]
 COLOR_PREFIX = "Color: "
 PRONOUNS_PREFIX = "Pronouns: "
+
+IMG_FONT = opensans(font_weight=600).imagefont(size=16)
+FONT_X_PADDING = 5
+FONT_Y_PADDING = 5
+
+
+def chunk(items, num_chunks=3):
+    chunks = []
+
+    if not items:
+        return chunks
+
+    chunk_size = ceil(len(items) / num_chunks)
+    for idx in range(0, len(items), chunk_size):
+        chunks.append(items[idx : idx + chunk_size])
+
+    return chunks
+
+
+def get_text_color(rgb):
+    if (rgb[0] * 0.299 + rgb[1] * 0.587 + rgb[2] * 0.114) > 160:
+        return (0, 0, 0, 255)
+    return (255, 255, 255, 255)
+
+
+def make_available_colors_image(roles):
+
+    max_column_widths = []
+    max_text_height = 0
+
+    roles = [
+        (k, v)
+        for k, v in sorted(roles.items(), key=lambda role: role[1].color.to_rgb())
+    ]
+    roles = chunk(roles, 3)
+
+    for column_idx, column in enumerate(roles):
+        for role_name, _ in column:
+            if len(max_column_widths) == column_idx:
+                max_column_widths.append(0)
+
+            width, height = IMG_FONT.getsize(role_name, None, None, None, 0)
+            max_text_height = max(max_text_height, height)
+            max_column_widths[column_idx] = max(max_column_widths[column_idx], width)
+
+    img_width = sum(max_column_widths) + ((len(roles) * 2) * FONT_X_PADDING)
+    max_len_column = max(map(len, roles))
+    img_height = (max_len_column * max_text_height) + (
+        (max_len_column * 2) * FONT_Y_PADDING
+    )
+
+    out_img = Image.new("RGBA", (img_width, img_height))
+    img_draw = ImageDraw.Draw(out_img)
+
+    x0 = 0
+    for column_idx, column in enumerate(roles):
+        column_width = max_column_widths[column_idx] + FONT_X_PADDING * 2
+        for row_idx, (role_name, role) in enumerate(column):
+            row_height = max_text_height + FONT_Y_PADDING * 2
+            x1 = x0 + column_width - 1
+            y0 = row_idx * row_height
+            y1 = y0 + row_height - 1
+            img_draw.rectangle([x0, y0, x1, y1], fill=role.color.to_rgb())
+            img_draw.text(
+                (x0 + FONT_X_PADDING, y0 + FONT_Y_PADDING),
+                role_name,
+                font=IMG_FONT,
+                fill=get_text_color(role.color.to_rgb()),
+            )
+
+        x0 += column_width
+
+    buf = io.BytesIO()
+    out_img.save(buf, format="PNG")
+    buf.seek(0)
+
+    return buf
 
 
 # Mapping of guild to list of channels where the bot will respond.
@@ -215,19 +296,31 @@ class Color(commands.Cog):
         return self.get_colors_roles(ctx.author.roles)
 
     @commands.command(
-        help="Set the color of your name.",
+        help=(
+            "Set the color of your name.\n"
+            "`none` can be passed to clear your color.\n"
+            "Calling the command with no arguments will show available colors."
+        ),
         brief="Set the color of your name.",
         usage="color_name",
     )
     @commands.check(is_support_channel)
     async def color(self, ctx, *args):
+        guild_color_roles = self.get_guild_colors(ctx)
+
         # Check that the user passed a color at all
         if not args:
-            await ctx.send("See pins for available colors.")
+            img_file = make_available_colors_image(guild_color_roles)
+            await ctx.send(
+                "Available colors:", file=discord.File(img_file, "colors.png")
+            )
             return
 
         requested_color = " ".join(args).strip().lower()
-        guild_color_roles = self.get_guild_colors(ctx)
+        if requested_color.lower() == "none":
+            await ctx.author.remove_roles(*self.get_author_colors(ctx).values())
+            await ctx.message.add_reaction("👍")
+            return
 
         # Check that the requested color is available.
         target_role = guild_color_roles.get(requested_color)
@@ -270,7 +363,11 @@ class Pronouns(commands.Cog):
         return self.get_pronouns_roles(ctx.author.roles)
 
     @commands.command(
-        help="Set the pronouns you prefer.",
+        help=(
+            "Set the pronouns you prefer.\n"
+            "`none` can be passed to clear your pronoun roles.\n"
+            "Calling the command with no arguments will show available pronouns."
+        ),
         brief="Set the pronouns you prefer.",
         usage="pronouns",
     )
@@ -287,6 +384,11 @@ class Pronouns(commands.Cog):
             return
 
         requested_pronouns = [arg.strip().lower() for arg in args]
+        if len(requested_pronouns) == 1 and requested_pronouns[0].lower() == "none":
+            await ctx.author.remove_roles(*self.get_author_pronouns(ctx).values())
+            await ctx.message.add_reaction("👍")
+            return
+
         target_pronouns = []
         unavailable_pronouns = []
 
@@ -395,6 +497,32 @@ def parse_config(config_path):
     return data
 
 
+class GhistBotkeeper(commands.Bot):
+    pass
+
+
+class HelpCommand(commands.DefaultHelpCommand):
+    def add_indented_commands(self, commands, *, heading, max_size=None):
+        if not commands:
+            return
+
+        max_size = max_size or self.get_max_size(commands)
+        get_width = discord.utils._string_width
+        for command in commands:
+            name = command.name
+            if name == "help":
+                continue
+            width = max_size - (get_width(name) - len(name))
+            entry = "{0:<{width}} {1}".format(name, command.short_doc, width=width)
+            self.paginator.add_line(self.shorten_text(entry))
+
+    def get_ending_note(self):
+        command_name = self.invoked_with
+        return "Type {0}{1} command for more info on a command.\n".format(
+            self.clean_prefix, command_name
+        )
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -412,14 +540,11 @@ def main():
     if args.config.exists():
         config = parse_config(args.config)
 
-    # Change only the no_category default string
-    help_command = commands.DefaultHelpCommand(no_category="Commands")
-
     intents = discord.Intents.default()
     intents.members = True
 
-    ghist = commands.Bot(
-        command_prefix=args.prefix, help_command=help_command, intents=intents
+    ghist = GhistBotkeeper(
+        command_prefix=args.prefix, help_command=HelpCommand(), intents=intents
     )
 
     # Cog Setup
