@@ -1,4 +1,5 @@
 import argparse
+import colorsys
 import json
 import logging
 import os
@@ -57,7 +58,10 @@ def make_available_colors_image(roles):
 
     roles = [
         (k, v)
-        for k, v in sorted(roles.items(), key=lambda role: role[1].color.to_rgb())
+        for k, v in sorted(
+            roles.items(),
+            key=lambda role: colorsys.rgb_to_hsv(*role[1].color.to_rgb())
+        )
     ]
     roles = chunk(roles, 3)
 
