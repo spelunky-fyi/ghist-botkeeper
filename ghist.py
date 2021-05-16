@@ -300,6 +300,7 @@ class Color(commands.Cog):
         return self.get_colors_roles(ctx.author.roles)
 
     @commands.command(
+        aliases=['colour'],
         help=(
             "Set the color of your name.\n"
             "`none` can be passed to clear your color.\n"
