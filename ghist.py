@@ -457,10 +457,10 @@ class Ushabti(commands.Cog):
     @commands.command(
         help="Display an ushabti.",
         brief="Display an ushabti.",
-        usage="[adjective] [adjective] [adjective]",
+        usage="adjective [adjective] [adjective]",
     )
     @commands.check(not_support_channel)
-    async def ushabti(self, ctx, adj1=None, adj2=None, adj3=None):
+    async def ushabti(self, ctx, adj1, adj2=None, adj3=None):
         adjectives = {
             "style": None,
             "material": None,
@@ -481,11 +481,9 @@ class Ushabti(commands.Cog):
 
             adjectives[type_] = adj
 
-        today = datetime.datetime.utcnow()
-        seed = int(f"{today.year:04}{today.month:02}{today.day:02}")
         for type_, adj in adjectives.items():
             if adj is None:
-                adjectives[type_] = random.Random(seed).choice(
+                adjectives[type_] = random.choice(
                     TYPE_TO_ADJECTIVES[type_]
                 )
 
