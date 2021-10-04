@@ -5,5 +5,5 @@ WORKDIR /ghist
 RUN pip install -r requirements.txt
 COPY . /ghist
 
-ENTRYPOINT ["python", "ghist.py"]
+ENTRYPOINT ["python", "ghist-botkeeper.py"]
 CMD []
