@@ -142,7 +142,7 @@ class Color(commands.Cog):
         target_role = guild_color_roles.get(requested_color)
         if target_role is None:
             await ctx.send(
-                f"The color `{requested_color}` isn't available. See pins for available colors."
+                f"The color `{requested_color}` isn't available. Type `!color` to see available colors."
             )
             return
 
