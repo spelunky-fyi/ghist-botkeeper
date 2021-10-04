@@ -13,6 +13,7 @@ load_dotenv("ghist-bot.env")
 
 from ghist.checks import SUPPORT_CHANNELS, globally_block_dms
 from ghist.cogs.color import Color
+from ghist.cogs.sync_ranking_icons import MossRankingIconSync
 from ghist.cogs.mr_sync import MossrankingSync
 from ghist.cogs.pronouns import Pronouns
 from ghist.cogs.ushabti import Ushabti
@@ -93,6 +94,12 @@ def main():
                 guild_id=config["mr-sync"]["guild-id"],
                 role_id=config["mr-sync"]["role-id"],
                 game_role_ids=config["mr-sync"].get("games", {}),
+            )
+        )
+        ghist.add_cog(
+            MossRankingIconSync(
+                bot=ghist,
+                guild_id=config["mr-sync"]["guild-id"],
             )
         )
 
