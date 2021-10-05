@@ -132,4 +132,8 @@ dmypy.json
 
 # Ghistbot
 ghist-bot.env
+ghist-bot.dev.env
+ghist-bot.prod.env
 ghist-bot-config.json
+ghist-bot-config.dev.json
+ghist-bot-config.prod.json

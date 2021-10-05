@@ -1,14 +1,13 @@
-import enum
 import logging
 import os
-import re
 from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 import aiohttp
 from discord.ext import commands, tasks
-from discord.guild import Guild
+from discord.member import Member
 from discord.role import Role
+from discord.user import User
 
 BADGE_PREFIX = "Badge: "
 MR_SYNC_KEY = os.environ["MR_SYNC_KEY"]
@@ -95,22 +94,26 @@ GAMES = [
 
 
 class MossRankingIconSync(commands.Cog):
-    def __init__(self, bot, guild_id):
+    def __init__(self, bot, guild_id, role_icon_message_id):
         self.bot = bot
         self.guild_id = guild_id
+        self.role_icon_message_id = role_icon_message_id
 
         self.syncer.start()  # pylint: disable=no-member
 
-    async def get_points_for_game(self, game: Game) -> Optional[Dict[int, int]]:
+    async def get_points_for_game(
+        self, game: Game, discord_id=None
+    ) -> Optional[Dict[int, int]]:
+
+        params = {
+            "key": MR_SYNC_KEY,
+            "id_ranking": game.ranking_id,
+        }
+        if discord_id is not None:
+            params["discord_id"] = discord_id
 
         async with aiohttp.ClientSession() as session:
-            async with session.get(
-                MR_SYNC_ENDPOINT,
-                params={
-                    "key": MR_SYNC_KEY,
-                    "id_ranking": game.ranking_id,
-                },
-            ) as req:
+            async with session.get(MR_SYNC_ENDPOINT, params=params) as req:
                 if req.status != 200:
                     return
                 data = await req.json()
@@ -140,7 +143,7 @@ class MossRankingIconSync(commands.Cog):
                 return ranking
 
     async def sync_role_icons_for_game(
-        self, guild: Guild, game: Game, roles: Dict[str, Role]
+        self, members: List[Member], game: Game, roles: Dict[str, Role], discord_id=None
     ):
 
         game_sync_role = roles.get(game.role)
@@ -149,12 +152,12 @@ class MossRankingIconSync(commands.Cog):
 
         ranking_roles = self.get_ranking_roles(game, roles)
 
-        points_by_discord_id = await self.get_points_for_game(game)
+        points_by_discord_id = await self.get_points_for_game(game, discord_id)
         # Safety check in case api returns empty data
         if not points_by_discord_id:
             return
 
-        for member in guild.members:
+        for member in members:
             points = points_by_discord_id.get(member.id)
 
             # Don't have a sync role for this game. Make sure to clean up any orphaned roles
@@ -186,18 +189,44 @@ class MossRankingIconSync(commands.Cog):
                 )
                 await member.remove_roles(*leftover_roles)
 
-    @tasks.loop(seconds=300.0)
-    async def syncer(self):
+    async def sync_role_icons(self, discord_id=None):
         guild = self.bot.get_guild(self.guild_id)
         if not guild:
             return
 
+        if discord_id:
+            members = [guild.get_member(discord_id)]
+        else:
+            members = guild.members
+
         roles = self.get_badges_roles(guild=guild)
         for game in GAMES:
             logging.info("Syncing for game role: %s", game.role)
-            await self.sync_role_icons_for_game(guild, game, roles)
+            await self.sync_role_icons_for_game(members, game, roles, discord_id)
+
+    @tasks.loop(seconds=300.0)
+    async def syncer(self):
+        await self.sync_role_icons()
 
     @syncer.before_loop
     async def before_syncer(self):
         logging.info("Waiting for bot to be ready before starting sync task...")
         await self.bot.wait_until_ready()
+
+    @staticmethod
+    def get_badge_sync_roles(roles):
+        badge_sync_roles = set()
+        for role in roles:
+            if role.name.startswith("Badge: MR-Sync "):
+                badge_sync_roles.add(role)
+        return badge_sync_roles
+
+    @commands.Cog.listener()
+    async def on_member_update(self, before: User, after: User):
+        before_badge_sync_roles = self.get_badge_sync_roles(before.roles)
+        after_badge_sync_roles = self.get_badge_sync_roles(after.roles)
+
+        if before_badge_sync_roles == after_badge_sync_roles:
+            return
+
+        await self.sync_role_icons(after.id)
