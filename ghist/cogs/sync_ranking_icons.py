@@ -94,10 +94,9 @@ GAMES = [
 
 
 class MossRankingIconSync(commands.Cog):
-    def __init__(self, bot, guild_id, role_icon_message_id):
+    def __init__(self, bot, guild_id):
         self.bot = bot
         self.guild_id = guild_id
-        self.role_icon_message_id = role_icon_message_id
 
         self.syncer.start()  # pylint: disable=no-member
 
