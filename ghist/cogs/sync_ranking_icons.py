@@ -64,29 +64,29 @@ GAMES = [
         ranking_id=20,
         role="Badge: MR-Sync 2",
         rankings=[
-            Ranking(min_points=0, max_points=166_999, role="Badge: 2 Dwelling"),
-            Ranking(min_points=167_000, max_points=333_999, role="Badge: 2 Volcana"),
+            Ranking(min_points=0, max_points=178_000, role="Badge: 2 Dwelling"),
+            Ranking(min_points=178_001, max_points=356_000, role="Badge: 2 Volcana"),
             Ranking(
-                min_points=334_000, max_points=500_999, role="Badge: 2 Olmec's Lair"
+                min_points=356_001, max_points=534_000, role="Badge: 2 Olmec's Lair"
             ),
             Ranking(
-                min_points=501_000, max_points=667_999, role="Badge: 2 Temple of Anubis"
+                min_points=534_001, max_points=712_000, role="Badge: 2 Temple of Anubis"
             ),
             Ranking(
-                min_points=668_000, max_points=834_999, role="Badge: 2 City of Gold"
+                min_points=712_001, max_points=890_000, role="Badge: 2 City of Gold"
             ),
-            Ranking(min_points=835_000, max_points=1_001_999, role="Badge: 2 Duat"),
+            Ranking(min_points=890_001, max_points=1_068_000, role="Badge: 2 Duat"),
             Ranking(
-                min_points=1_002_000, max_points=1_168_999, role="Badge: 2 Ice Caves"
-            ),
-            Ranking(
-                min_points=1_169_000, max_points=1_335_999, role="Badge: 2 Neo Babylon"
+                min_points=1_068_001, max_points=1_246_000, role="Badge: 2 Ice Caves"
             ),
             Ranking(
-                min_points=1_336_000, max_points=1_502_999, role="Badge: 2 Sunken City"
+                min_points=1_246_001, max_points=1_424_000, role="Badge: 2 Neo Babylon"
             ),
             Ranking(
-                min_points=1_503_000, max_points=1_670_000, role="Badge: 2 Cosmic Ocean"
+                min_points=1_424_001, max_points=1_602_000, role="Badge: 2 Sunken City"
+            ),
+            Ranking(
+                min_points=1_602_001, max_points=1_780_000, role="Badge: 2 Cosmic Ocean"
             ),
         ],
     ),
