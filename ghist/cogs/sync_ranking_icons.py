@@ -33,15 +33,15 @@ GAMES = [
         ranking_id=17,
         role="Badge: MR-Sync Classic",
         rankings=[
-            Ranking(min_points=0, max_points=109_999, role="Badge: Classic Mines"),
+            Ranking(min_points=0, max_points=137_500, role="Badge: Classic Mines"),
             Ranking(
-                min_points=110_000, max_points=219_999, role="Badge: Classic Jungle"
+                min_points=137_501, max_points=275_000, role="Badge: Classic Jungle"
             ),
             Ranking(
-                min_points=220_000, max_points=329_999, role="Badge: Classic Ice Caves"
+                min_points=275_001, max_points=412_500, role="Badge: Classic Ice Caves"
             ),
             Ranking(
-                min_points=330_000, max_points=440_000, role="Badge: Classic Temple"
+                min_points=412_501, max_points=550_000, role="Badge: Classic Temple"
             ),
         ],
     ),
