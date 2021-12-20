@@ -114,12 +114,12 @@ class MossRankingIconSync(commands.Cog):
     def get_ranking_for_title(title, game: Game) -> Optional[Ranking]:
         for ranking in game.rankings:
             if isinstance(ranking.contains, str):
-                contains = [ranking.contains]
+                needles = [ranking.contains]
             else:
-                contains = ranking.contains
+                needles = ranking.contains
 
-            for needle in contains:
-                if title.contains(ranking.contains):
+            for needle in needles:
+                if needle in title:
                     return ranking
 
     async def sync_role_icons_for_game(
