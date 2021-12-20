@@ -16,8 +16,7 @@ MR_SYNC_ENDPOINT = "https://mossranking.com/api/getdiscorduserranking.php"
 
 @dataclass
 class Ranking:
-    min_points: int
-    max_points: int
+    contains: str
     role: str
 
 
@@ -33,61 +32,37 @@ GAMES = [
         ranking_id=17,
         role="Badge: MR-Sync Classic",
         rankings=[
-            Ranking(min_points=0, max_points=137_500, role="Badge: Classic Mines"),
-            Ranking(
-                min_points=137_501, max_points=275_000, role="Badge: Classic Jungle"
-            ),
-            Ranking(
-                min_points=275_001, max_points=412_500, role="Badge: Classic Ice Caves"
-            ),
-            Ranking(
-                min_points=412_501, max_points=550_000, role="Badge: Classic Temple"
-            ),
+            Ranking(contains="Mines", role="Badge: Classic Mines"),
+            Ranking(contains="Jungle", role="Badge: Classic Jungle"),
+            Ranking(contains="Ice Caves", role="Badge: Classic Ice Caves"),
+            Ranking(contains="Temple", role="Badge: Classic Temple"),
         ],
     ),
     Game(
         ranking_id=1,
         role="Badge: MR-Sync HD",
         rankings=[
-            Ranking(min_points=0, max_points=353_999, role="Badge: HD Mines"),
-            Ranking(min_points=354_000, max_points=707_999, role="Badge: HD Jungle"),
-            Ranking(
-                min_points=708_000, max_points=1_061_999, role="Badge: HD Ice Caves"
-            ),
-            Ranking(
-                min_points=1_062_000, max_points=1_415_999, role="Badge: HD Temple"
-            ),
-            Ranking(min_points=1_416_000, max_points=1_770_001, role="Badge: HD Hell"),
+            Ranking(contains="Mines", role="Badge: HD Mines"),
+            Ranking(contains="Jungle", role="Badge: HD Jungle"),
+            Ranking(contains="Ice Caves", role="Badge: HD Ice Caves"),
+            Ranking(contains="Temple", role="Badge: HD Temple"),
+            Ranking(contains=["Hell", "Grandmaster"], role="Badge: HD Hell"),
         ],
     ),
     Game(
         ranking_id=20,
         role="Badge: MR-Sync 2",
         rankings=[
-            Ranking(min_points=0, max_points=178_000, role="Badge: 2 Dwelling"),
-            Ranking(min_points=178_001, max_points=356_000, role="Badge: 2 Volcana"),
-            Ranking(
-                min_points=356_001, max_points=534_000, role="Badge: 2 Olmec's Lair"
-            ),
-            Ranking(
-                min_points=534_001, max_points=712_000, role="Badge: 2 Temple of Anubis"
-            ),
-            Ranking(
-                min_points=712_001, max_points=890_000, role="Badge: 2 City of Gold"
-            ),
-            Ranking(min_points=890_001, max_points=1_068_000, role="Badge: 2 Duat"),
-            Ranking(
-                min_points=1_068_001, max_points=1_246_000, role="Badge: 2 Ice Caves"
-            ),
-            Ranking(
-                min_points=1_246_001, max_points=1_424_000, role="Badge: 2 Neo Babylon"
-            ),
-            Ranking(
-                min_points=1_424_001, max_points=1_602_000, role="Badge: 2 Sunken City"
-            ),
-            Ranking(
-                min_points=1_602_001, max_points=1_780_000, role="Badge: 2 Cosmic Ocean"
-            ),
+            Ranking(contains="Dwelling", role="Badge: 2 Dwelling"),
+            Ranking(contains="Volcana", role="Badge: 2 Volcana"),
+            Ranking(contains="Olmec", role="Badge: 2 Olmec's Lair"),
+            Ranking(contains="Temple", role="Badge: 2 Temple of Anubis"),
+            Ranking(contains="City of Gold", role="Badge: 2 City of Gold"),
+            Ranking(contains="Duat", role="Badge: 2 Duat"),
+            Ranking(contains="Ice Caves", role="Badge: 2 Ice Caves"),
+            Ranking(contains="Neo Babylon", role="Badge: 2 Neo Babylon"),
+            Ranking(contains="Sunken City", role="Badge: 2 Sunken City"),
+            Ranking(contains="Cosmic Ocean", role="Badge: 2 Cosmic Ocean"),
         ],
     ),
 ]
@@ -100,7 +75,7 @@ class MossRankingIconSync(commands.Cog):
 
         self.syncer.start()  # pylint: disable=no-member
 
-    async def get_points_for_game(
+    async def get_titles_for_game(
         self, game: Game, discord_id=None
     ) -> Optional[Dict[int, int]]:
 
@@ -136,10 +111,16 @@ class MossRankingIconSync(commands.Cog):
         return ranking_roles
 
     @staticmethod
-    def get_ranking_for_points(points, game: Game) -> Optional[Ranking]:
+    def get_ranking_for_title(title, game: Game) -> Optional[Ranking]:
         for ranking in game.rankings:
-            if points >= ranking.min_points and points <= ranking.max_points:
-                return ranking
+            if isinstance(ranking.contains, str):
+                contains = [ranking.contains]
+            else:
+                contains = ranking.contains
+
+            for needle in contains:
+                if title.contains(ranking.contains):
+                    return ranking
 
     async def sync_role_icons_for_game(
         self, members: List[Member], game: Game, roles: Dict[str, Role], discord_id=None
@@ -151,16 +132,16 @@ class MossRankingIconSync(commands.Cog):
 
         ranking_roles = self.get_ranking_roles(game, roles)
 
-        points_by_discord_id = await self.get_points_for_game(game, discord_id)
+        title_by_discord_id = await self.get_titles_for_game(game, discord_id)
         # Safety check in case api returns empty data
-        if not points_by_discord_id:
+        if not title_by_discord_id:
             return
 
         for member in members:
-            points = points_by_discord_id.get(member.id)
+            title = title_by_discord_id.get(member.id)
 
             # Don't have a sync role for this game. Make sure to clean up any orphaned roles
-            if game_sync_role not in member.roles or not points:
+            if game_sync_role not in member.roles or not title:
                 orphaned_roles = ranking_roles.intersection(member.roles)
                 if orphaned_roles:
                     logging.info(
@@ -169,7 +150,7 @@ class MossRankingIconSync(commands.Cog):
                     await member.remove_roles(*orphaned_roles)
                 continue
 
-            target_ranking = self.get_ranking_for_points(points, game)
+            target_ranking = self.get_ranking_for_title(title, game)
             target_role = roles.get(target_ranking.role)
             if not target_role:
                 logging.warning("Something went wrong with %s", target_ranking)
