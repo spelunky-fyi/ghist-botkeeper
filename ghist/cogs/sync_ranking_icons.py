@@ -92,7 +92,7 @@ class MossRankingIconSync(commands.Cog):
                     return
                 data = await req.json()
 
-        return {int(key): int(value) for key, value in data.items()}
+        return {int(key): value for key, value in data.items()}
 
     def get_badges_roles(self, guild):
         roles = {}
