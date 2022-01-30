@@ -9,10 +9,12 @@ import discord
 from discord.ext import commands
 from dotenv import load_dotenv
 
+
 load_dotenv("ghist-bot.env")
 
 from ghist.checks import SUPPORT_CHANNELS, globally_block_dms
 from ghist.cogs.color import Color
+from ghist.cogs.spelunkicon import Spelunkicon
 from ghist.cogs.sync_ranking_icons import MossRankingIconSync
 from ghist.cogs.mr_sync import MossrankingSync
 from ghist.cogs.pronouns import Pronouns
@@ -86,6 +88,7 @@ def main():
     ghist.add_cog(Color(ghist))
     ghist.add_cog(Pronouns(ghist))
     ghist.add_cog(Ushabti(ghist))
+    ghist.add_cog(Spelunkicon(ghist))
 
     if config.get("mr-sync"):
         ghist.add_cog(
