@@ -18,9 +18,11 @@ class Spelunkicon(commands.Cog):
         usage="[word]",
     )
     @commands.check(not_support_channel)
-    async def spelunkicon(self, ctx, word=None):
-        if word is None:
+    async def spelunkicon(self, ctx, *words):
+        if not words:
             word = str(ctx.author.id)
+        else:
+            word = " ".join(words)[:63]
 
         word = quote_plus(word)
 
