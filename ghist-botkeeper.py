@@ -56,7 +56,7 @@ class HelpCommand(commands.DefaultHelpCommand):
     def get_ending_note(self):
         command_name = self.invoked_with
         return "Type {0}{1} command for more info on a command.\n".format(
-            self.clean_prefix, command_name
+            self.context.clean_prefix, command_name
         )
 
 
