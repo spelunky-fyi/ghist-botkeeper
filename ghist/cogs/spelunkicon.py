@@ -15,14 +15,19 @@ class Spelunkicon(commands.Cog):
     @commands.command(
         help="Generate a spelunkicon based on your Discord ID (or another word).",
         brief="Generate a spelunkicon.",
-        usage="[!big] [word]",
+        usage="[!big|!small] [word]",
     )
     @commands.check(not_support_channel)
     async def spelunkicon(self, ctx, *words):
         big = False
-        if words and words[0] == "!big":
-            words = words[1:]
-            big = True
+        small = False
+        if words:
+            if words[0] == "!big":
+                words = words[1:]
+                big = True
+            elif words[0] == "!small":
+                words = words[1:]
+                small = True
 
         if not words:
             word = str(ctx.author.id)
@@ -42,5 +47,7 @@ class Spelunkicon(commands.Cog):
         url = SPELUNKICON_URL.format(word=word)
         if big:
             url += "?size=8"
+        elif small:
+            url += "?size=4"
 
         await ctx.send(url)
