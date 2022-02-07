@@ -1,3 +1,5 @@
+import random
+import string
 from urllib.parse import quote_plus
 
 from discord.ext import commands
@@ -5,7 +7,7 @@ from discord.ext import commands
 from ghist.checks import not_support_channel
 
 
-SPELUNKICON_URL = "https://spelunky.fyi/spelunkicons/{word}.png"
+SPELUNKICON_URL = "https://spelunky.fyi/spelunkicons/{word}.png?v=2"
 
 
 class Spelunkicon(commands.Cog):
@@ -18,23 +20,31 @@ class Spelunkicon(commands.Cog):
         usage="[!big|!small] [word]",
     )
     @commands.check(not_support_channel)
-    async def spelunkicon(self, ctx, *words):
+    async def spelunkicon(self, ctx, *orig_words):
         big = False
         small = False
-        if words:
-            if words[0] == "!big":
-                words = words[1:]
-                big = True
-            elif words[0] == "!small":
-                words = words[1:]
-                small = True
+        gen_random = False
 
-        if not words:
-            word = str(ctx.author.id)
+        words = []
+        if orig_words:
+            for word in orig_words:
+                if word == "!big":
+                    big = True
+                elif word == "!small":
+                    small = True
+                elif word == "!random":
+                    gen_random = True
+                else:
+                    words.append(word)
+
+        if gen_random:
+            word = "".join(random.choices(string.ascii_uppercase + string.digits, k=60))
         else:
-            word = " ".join(words)
-
-        word = quote_plus(word)[:63]
+            if not words:
+                word = str(ctx.author.id)
+            else:
+                word = " ".join(words)
+            word = quote_plus(word)[:63]
 
         if not word:
             await ctx.send(f"Must provide some input.")
@@ -46,8 +56,8 @@ class Spelunkicon(commands.Cog):
 
         url = SPELUNKICON_URL.format(word=word)
         if big:
-            url += "?size=8"
+            url += "&size=8"
         elif small:
-            url += "?size=4"
+            url += "&size=4"
 
         await ctx.send(url)
