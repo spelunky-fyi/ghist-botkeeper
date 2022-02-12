@@ -20,13 +20,14 @@ class Spelunkicon(commands.Cog):
         usage="[!big|!small] [word]",
     )
     @commands.check(not_support_channel)
-    async def spelunkicon(self, ctx, *orig_words):
+    async def spelunkicon(self, ctx, *, orig_words=None):
         big = False
         small = False
         gen_random = False
 
         words = []
         if orig_words:
+            orig_words = orig_words.split()
             for word in orig_words:
                 if word == "!big":
                     big = True
