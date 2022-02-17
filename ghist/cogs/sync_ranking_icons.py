@@ -63,6 +63,7 @@ GAMES = [
             Ranking(contains="Neo Babylon", role="Badge: 2 Neo Babylon"),
             Ranking(contains="Sunken City", role="Badge: 2 Sunken City"),
             Ranking(contains="Cosmic Ocean", role="Badge: 2 Cosmic Ocean"),
+            Ranking(contains="Cosmos", role="Badge: 2 Cosmos"),
         ],
     ),
 ]
