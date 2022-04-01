@@ -12,6 +12,4 @@ class Dogs(commands.Cog):
     async def on_message(self, message):
         if str(message.channel.id) not in DOGS_CHANNELS:
             return
-        await message.add_reaction("🐶")
-        await message.add_reaction("🐕")
-        await message.add_reaction("🐩")
+        await message.add_reaction("🐢")
