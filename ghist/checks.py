@@ -6,6 +6,8 @@ from collections import defaultdict
 # respond in all channels.
 SUPPORT_CHANNELS = defaultdict(list)
 
+DOGS_CHANNELS = set()
+
 
 async def globally_block_dms(ctx):
     return ctx.guild is not None
