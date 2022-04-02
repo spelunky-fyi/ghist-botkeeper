@@ -19,7 +19,6 @@ from ghist.cogs.sync_ranking_icons import MossRankingIconSync
 from ghist.cogs.mr_sync import MossrankingSync
 from ghist.cogs.pronouns import Pronouns
 from ghist.cogs.ushabti import Ushabti
-from ghist.cogs.dogs import Dogs
 
 
 TOKEN = os.environ["GHIST_BOT_TOKEN"]
@@ -92,7 +91,6 @@ def main():
     ghist.add_cog(Pronouns(ghist))
     ghist.add_cog(Ushabti(ghist))
     ghist.add_cog(Spelunkicon(ghist))
-    ghist.add_cog(Dogs(ghist))
 
     if config.get("mr-sync"):
         ghist.add_cog(
