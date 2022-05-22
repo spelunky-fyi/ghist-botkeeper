@@ -17,13 +17,15 @@ class Spelunkicon(commands.Cog):
     @commands.command(
         help="Generate a spelunkicon based on your Discord ID (or another word).",
         brief="Generate a spelunkicon.",
-        usage="[!big|!small] [word]",
+        usage="[!big|!small] [!random] [!pride] [word]",
     )
     @commands.check(not_support_channel)
     async def spelunkicon(self, ctx, *, orig_words=None):
         big = False
         small = False
         gen_random = False
+        pride = False
+        random_size = False
 
         words = []
         if orig_words:
@@ -35,6 +37,9 @@ class Spelunkicon(commands.Cog):
                     small = True
                 elif word == "!random":
                     gen_random = True
+                elif word == "!pride":
+                    pride = True
+                    random_size = True
                 else:
                     words.append(word)
 
@@ -56,9 +61,16 @@ class Spelunkicon(commands.Cog):
             return
 
         url = SPELUNKICON_URL.format(word=word)
-        if big:
+        if random_size:
+            generator = random.Random(word)
+            size = generator.choice(range(3, 9))
+            url += f"&size={size}"
+        elif big:
             url += "&size=8"
         elif small:
             url += "&size=4"
+
+        if pride:
+            url += "&egg=pride"
 
         await ctx.send(url)

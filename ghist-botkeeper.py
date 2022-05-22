@@ -81,6 +81,7 @@ def main():
 
     intents = discord.Intents.default()
     intents.members = True
+    intents.message_content = True
 
     ghist = GhistBotkeeper(
         command_prefix=args.prefix, help_command=HelpCommand(), intents=intents
