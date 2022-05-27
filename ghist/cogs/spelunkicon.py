@@ -7,7 +7,7 @@ from discord.ext import commands
 from ghist.checks import not_support_channel
 
 
-SPELUNKICON_URL = "https://spelunky.fyi/spelunkicons/{word}.png?v=2"
+SPELUNKICON_URL = "https://spelunky.fyi/spelunkicons/{word}.png?v=3"
 
 
 class Spelunkicon(commands.Cog):
