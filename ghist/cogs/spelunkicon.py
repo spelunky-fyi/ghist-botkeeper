@@ -25,6 +25,7 @@ class Spelunkicon(commands.Cog):
         gen_random = False
         pride = False
         classic = False
+        chaos = False
         random_size = False
 
         words = []
@@ -48,6 +49,8 @@ class Spelunkicon(commands.Cog):
                     random_size = True
                 elif word == "!classic":
                     classic = True
+                elif word == "!chaos":
+                    chaos = True
                 else:
                     words.append(word)
 
