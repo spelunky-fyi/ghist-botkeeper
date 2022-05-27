@@ -17,7 +17,7 @@ class Spelunkicon(commands.Cog):
     @commands.command(
         help="Generate a spelunkicon based on your Discord ID (or another word).",
         brief="Generate a spelunkicon.",
-        usage="[!big|!bigger|!smaller|!small|!smallest] [!random] [!pride] [!classic] [word]",
+        usage="[!big|!bigger|!smaller|!small|!smallest] [!random] [!pride] [!classic] [!chaos] [word]",
     )
     @commands.check(not_support_channel)
     async def spelunkicon(self, ctx, *, orig_words=None):
@@ -81,5 +81,8 @@ class Spelunkicon(commands.Cog):
 
         if classic:
             url += "&egg=classic"
+
+        if chaos:
+            url += "&misc=64"
 
         await ctx.send(url)
