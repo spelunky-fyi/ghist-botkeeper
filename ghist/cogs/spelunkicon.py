@@ -17,7 +17,7 @@ class Spelunkicon(commands.Cog):
     @commands.command(
         help="Generate a spelunkicon based on your Discord ID (or another word).",
         brief="Generate a spelunkicon.",
-        usage="[!big|!bigger|!smaller|!small|!smallest] [!random] [!pride] [!classic] [!chaos] [word]",
+        usage="[!biggest|!big|!bigger|!smaller|!small|!smallest] [!random] [!pride] [!classic] [!chaos] [word]",
     )
     @commands.check(not_support_channel)
     async def spelunkicon(self, ctx, *, orig_words=None):
@@ -26,6 +26,7 @@ class Spelunkicon(commands.Cog):
         pride = False
         classic = False
         chaos = False
+        biggest = False
         random_size = False
 
         words = []
@@ -51,10 +52,29 @@ class Spelunkicon(commands.Cog):
                     classic = True
                 elif word == "!chaos":
                     chaos = True
+                elif word == "!biggest":
+                    biggest = True
                 else:
                     words.append(word)
 
-        if gen_random:
+        if biggest and not pride:
+            # All these make a heart in size 7
+            word = random.choice(
+                [
+                    "qmT4K",
+                    "pqZYQ",
+                    "0u6QWm",
+                    "0vG8EB",
+                    "0U9bnV",
+                    "19FSLf",
+                    "1dFJos",
+                    "1DIyVH",
+                    "1UxSuO",
+                    "2EQ7Ay",
+                ]
+            )
+            size = 7
+        elif gen_random:
             word = "".join(random.choices(string.ascii_uppercase + string.digits, k=60))
         else:
             if not words:
