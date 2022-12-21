@@ -44,8 +44,11 @@ GAMES = [
         rankings=[
             Ranking(contains="Mines", role="Badge: HD Mines"),
             Ranking(contains="Jungle", role="Badge: HD Jungle"),
+            Ranking(contains="Worm", role="Badge: HD Worm"),
             Ranking(contains="Ice Caves", role="Badge: HD Ice Caves"),
+            Ranking(contains="Mothership", role="Badge: HD Mothership"),
             Ranking(contains="Temple", role="Badge: HD Temple"),
+            Ranking(contains="City of Gold", role="Badge: HD City of Gold"),
             Ranking(contains=["Hell", "Grandmaster"], role="Badge: HD Hell"),
         ],
     ),
