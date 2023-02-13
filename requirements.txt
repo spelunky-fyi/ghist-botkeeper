@@ -1,4 +1,4 @@
-py-cord==2.0.0rc1
+py-cord==2.4.0
 aiohttp>=3.7.4
 python-dotenv>=0.15.0
 ttf-opensans>=2020.10.30
