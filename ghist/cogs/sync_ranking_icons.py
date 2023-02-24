@@ -35,7 +35,8 @@ GAMES = [
             Ranking(contains="Mines", role="Badge: Classic Mines"),
             Ranking(contains="Jungle", role="Badge: Classic Jungle"),
             Ranking(contains="Ice Caves", role="Badge: Classic Ice Caves"),
-            Ranking(contains=["Temple", "Grandmaster"], role="Badge: Classic Temple"),
+            Ranking(contains="Temple", role="Badge: Classic Temple"),
+            Ranking(contains=["City of Gold", "Grandmaster"], role="Badge: Classic City of Gold"),
         ],
     ),
     Game(
