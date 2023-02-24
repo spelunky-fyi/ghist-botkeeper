@@ -158,7 +158,7 @@ class MossRankingIconSync(commands.Cog):
             target_ranking = self.get_ranking_for_title(title, game)
             target_role = roles.get(target_ranking.role)
             if not target_role:
-                logging.warning("Something went wrong with %s", target_ranking)
+                logging.warning("Something went wrong with %s for %s", target_ranking, member.name)
                 continue
 
             if target_role not in member.roles:
