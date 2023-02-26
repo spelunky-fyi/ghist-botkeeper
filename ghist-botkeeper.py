@@ -12,13 +12,19 @@ from dotenv import load_dotenv
 
 load_dotenv("ghist-bot.env")
 
-from ghist.checks import SUPPORT_CHANNELS, DOGS_CHANNELS, globally_block_dms
+from ghist.checks import (
+    SUPPORT_CHANNELS,
+    DOGS_CHANNELS,
+    DAILY_CHANNELS,
+    globally_block_dms,
+)
 from ghist.cogs.color import Color
 from ghist.cogs.spelunkicon import Spelunkicon
 from ghist.cogs.sync_ranking_icons import MossRankingIconSync
 from ghist.cogs.mr_sync import MossrankingSync
 from ghist.cogs.pronouns import Pronouns
 from ghist.cogs.ushabti import Ushabti
+from ghist.cogs.daily_channel_titles import DailyChannelTitles
 
 
 TOKEN = os.environ["GHIST_BOT_TOKEN"]
@@ -32,6 +38,7 @@ def parse_config(config_path):
         SUPPORT_CHANNELS[guild] = channels
 
     DOGS_CHANNELS.update(set(data.get("dogs-channels", [])))
+    DAILY_CHANNELS.update(set(data.get("daily-channels", [])))
 
     return data
 
@@ -92,6 +99,7 @@ def main():
     ghist.add_cog(Pronouns(ghist))
     ghist.add_cog(Ushabti(ghist))
     ghist.add_cog(Spelunkicon(ghist))
+    ghist.add_cog(DailyChannelTitles(ghist))
 
     if config.get("mr-sync"):
         ghist.add_cog(

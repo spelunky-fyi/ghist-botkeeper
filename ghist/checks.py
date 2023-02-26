@@ -8,6 +8,8 @@ SUPPORT_CHANNELS = defaultdict(list)
 
 DOGS_CHANNELS = set()
 
+DAILY_CHANNELS = set()
+
 
 async def globally_block_dms(ctx):
     return ctx.guild is not None
