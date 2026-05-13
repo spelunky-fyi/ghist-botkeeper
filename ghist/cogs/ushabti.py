@@ -1,26 +1,14 @@
 import random
+from typing import Optional
 
+import discord
+from discord import app_commands
 from discord.ext import commands
 
-from ghist.checks import not_support_channel
 
-
-TYPE_TO_ADJECTIVES = {
-    "style": ["cracked", "tall", "smiling", "simple"],
-    "material": ["clay", "gold", "jade", "wood", "onyx"],
-    "symbol": ["eye", "ankh", "snake", "vortex", "bat"],
-}
-
-
-def invert_adjective_map(dict_):
-    out = {}
-    for type_, adjectives in dict_.items():
-        for adjective in adjectives:
-            out[adjective] = type_
-    return out
-
-
-ADJECTIVE_TO_TYPE = invert_adjective_map(TYPE_TO_ADJECTIVES)
+STYLES = ["cracked", "tall", "smiling", "simple"]
+MATERIALS = ["clay", "gold", "jade", "wood", "onyx"]
+SYMBOLS = ["eye", "ankh", "snake", "vortex", "bat"]
 
 USHABTI_URL = (
     "https://cdn.spelunky.fyi/static/images/ushabti/{style}-{material}-{symbol}.png"
@@ -31,35 +19,32 @@ class Ushabti(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.command(
-        help="Display an ushabti.",
-        brief="Display an ushabti.",
-        usage="adjective [adjective] [adjective]",
+    @app_commands.command(
+        name="ushabti",
+        description="Display an ushabti. Any unspecified slots are picked at random.",
     )
-    @commands.check(not_support_channel)
-    async def ushabti(self, ctx, adj1, adj2=None, adj3=None):
-        adjectives = {
-            "style": None,
-            "material": None,
-            "symbol": None,
-        }
+    @app_commands.describe(
+        style="The ushabti's style.",
+        material="The ushabti's material.",
+        symbol="The ushabti's symbol.",
+    )
+    @app_commands.choices(
+        style=[app_commands.Choice(name=s, value=s) for s in STYLES],
+        material=[app_commands.Choice(name=m, value=m) for m in MATERIALS],
+        symbol=[app_commands.Choice(name=s, value=s) for s in SYMBOLS],
+    )
+    async def ushabti(
+        self,
+        interaction: discord.Interaction,
+        style: Optional[app_commands.Choice[str]] = None,
+        material: Optional[app_commands.Choice[str]] = None,
+        symbol: Optional[app_commands.Choice[str]] = None,
+    ):
+        style_value = style.value if style else random.choice(STYLES)
+        material_value = material.value if material else random.choice(MATERIALS)
+        symbol_value = symbol.value if symbol else random.choice(SYMBOLS)
 
-        for adj in [adj1, adj2, adj3]:
-            if adj is None:
-                continue
-            type_ = ADJECTIVE_TO_TYPE.get(adj)
-            if type_ is None:
-                await ctx.send(f"Provided unknown value `{adj}`")
-                return
-
-            if adjectives[type_] is not None:
-                await ctx.send(f"Provided more than one value of type {type_}")
-                return
-
-            adjectives[type_] = adj
-
-        for type_, adj in adjectives.items():
-            if adj is None:
-                adjectives[type_] = random.choice(TYPE_TO_ADJECTIVES[type_])
-
-        await ctx.send(USHABTI_URL.format(**adjectives))
+        url = USHABTI_URL.format(
+            style=style_value, material=material_value, symbol=symbol_value
+        )
+        await interaction.response.send_message(url, ephemeral=True)

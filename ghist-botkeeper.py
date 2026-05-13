@@ -6,6 +6,7 @@ from pathlib import Path
 
 
 import discord
+from discord import app_commands
 from discord.ext import commands
 from dotenv import load_dotenv
 
@@ -43,37 +44,70 @@ def parse_config(config_path):
     return data
 
 
-class GhistBotkeeper(commands.Bot):
-    pass
+class GhistCommandTree(app_commands.CommandTree):
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        return await globally_block_dms(interaction)
 
-
-class HelpCommand(commands.DefaultHelpCommand):
-    def add_indented_commands(self, commands, *, heading, max_size=None):
-        if not commands:
+    async def on_error(self, interaction, error):
+        if isinstance(error, app_commands.CheckFailure):
+            msg = "You can't use this command here."
+            if interaction.response.is_done():
+                await interaction.followup.send(msg, ephemeral=True)
+            else:
+                await interaction.response.send_message(msg, ephemeral=True)
             return
+        await super().on_error(interaction, error)
 
-        max_size = max_size or self.get_max_size(commands)
-        get_width = discord.utils._string_width
-        for command in commands:
-            name = command.name
-            if name == "help":
-                continue
-            width = max_size - (get_width(name) - len(name))
-            entry = "{0:<{width}} {1}".format(name, command.short_doc, width=width)
-            self.paginator.add_line(self.shorten_text(entry))
 
-    def get_ending_note(self):
-        command_name = self.invoked_with
-        return "Type {0}{1} command for more info on a command.\n".format(
-            self.context.clean_prefix, command_name
-        )
+class GhistBotkeeper(commands.Bot):
+    def __init__(self, *, config, **kwargs):
+        super().__init__(**kwargs)
+        self.config = config
+
+    async def setup_hook(self):
+        await self.add_cog(Color(self))
+        await self.add_cog(Pronouns(self))
+        await self.add_cog(Ushabti(self))
+        await self.add_cog(Spelunkicon(self))
+        await self.add_cog(DailyChannelTitles(self))
+
+        if self.config.get("mr-sync"):
+            await self.add_cog(
+                MossrankingSync(
+                    bot=self,
+                    guild_id=self.config["mr-sync"]["guild-id"],
+                    role_id=self.config["mr-sync"]["role-id"],
+                    game_role_ids=self.config["mr-sync"].get("games", {}),
+                )
+            )
+            await self.add_cog(
+                MossRankingIconSync(
+                    bot=self,
+                    guild_id=self.config["mr-sync"]["guild-id"],
+                )
+            )
+
+        guild_ids = self.config.get("guild-ids") or []
+        if guild_ids:
+            for guild_id in guild_ids:
+                guild = discord.Object(id=int(guild_id))
+                self.tree.copy_global_to(guild=guild)
+                synced = await self.tree.sync(guild=guild)
+                logging.info(
+                    "Synced %d slash commands to guild %s",
+                    len(synced),
+                    guild_id,
+                )
+        else:
+            synced = await self.tree.sync()
+            logging.info(
+                "No guild-ids in config; synced %d slash commands globally",
+                len(synced),
+            )
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--prefix", default="!", help="The prefix this bot uses on bot commands."
-    )
     parser.add_argument(
         "--config",
         default=Path(__file__).absolute().parent / "ghist-bot-config.json",
@@ -88,37 +122,14 @@ def main():
 
     intents = discord.Intents.default()
     intents.members = True
-    intents.message_content = True
 
     ghist = GhistBotkeeper(
-        command_prefix=args.prefix, help_command=HelpCommand(), intents=intents
+        config=config,
+        command_prefix=commands.when_mentioned,
+        help_command=None,
+        intents=intents,
+        tree_cls=GhistCommandTree,
     )
-
-    # Cog Setup
-    ghist.add_cog(Color(ghist))
-    ghist.add_cog(Pronouns(ghist))
-    ghist.add_cog(Ushabti(ghist))
-    ghist.add_cog(Spelunkicon(ghist))
-    ghist.add_cog(DailyChannelTitles(ghist))
-
-    if config.get("mr-sync"):
-        ghist.add_cog(
-            MossrankingSync(
-                bot=ghist,
-                guild_id=config["mr-sync"]["guild-id"],
-                role_id=config["mr-sync"]["role-id"],
-                game_role_ids=config["mr-sync"].get("games", {}),
-            )
-        )
-        ghist.add_cog(
-            MossRankingIconSync(
-                bot=ghist,
-                guild_id=config["mr-sync"]["guild-id"],
-            )
-        )
-
-    # Global Checks
-    ghist.add_check(globally_block_dms)
 
     ghist.run(TOKEN)
 

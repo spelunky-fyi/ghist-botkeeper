@@ -1,6 +1,8 @@
-from discord.ext import commands
+from typing import Optional
 
-from ghist.checks import is_support_channel
+import discord
+from discord import app_commands
+from discord.ext import commands
 
 PRONOUNS_PREFIX = "Pronouns: "
 
@@ -17,68 +19,98 @@ class Pronouns(commands.Cog):
                 pronouns[role.name[len(PRONOUNS_PREFIX) :].lower()] = role
         return pronouns
 
-    def get_guild_pronouns(self, ctx):
-        return self.get_pronouns_roles(ctx.guild.roles)
-
-    def get_author_pronouns(self, ctx):
-        return self.get_pronouns_roles(ctx.author.roles)
-
-    @commands.command(
-        help=(
-            "Set the pronouns you prefer.\n"
-            "`none` can be passed to clear your pronoun roles.\n"
-            "Calling the command with no arguments will show available pronouns."
-        ),
-        brief="Set the pronouns you prefer.",
-        usage="pronouns",
+    @app_commands.command(
+        name="pronouns",
+        description="Set the pronouns you prefer. Omit to see available. Use `none` to clear.",
     )
-    @commands.check(is_support_channel)
-    async def pronouns(self, ctx, *args):
-        available_pronouns = self.get_guild_pronouns(ctx)
-        # Check that the user passed pronouns at all
-        if not args:
-            await ctx.send(
+    @app_commands.describe(
+        pronoun1="A pronoun, or `none` to clear all.",
+        pronoun2="An optional second pronoun.",
+        pronoun3="An optional third pronoun.",
+    )
+    async def pronouns(
+        self,
+        interaction: discord.Interaction,
+        pronoun1: Optional[str] = None,
+        pronoun2: Optional[str] = None,
+        pronoun3: Optional[str] = None,
+    ):
+        available_pronouns = self.get_pronouns_roles(interaction.guild.roles)
+        member = interaction.user
+
+        requested_pronouns = [
+            p.strip().lower() for p in (pronoun1, pronoun2, pronoun3) if p
+        ]
+
+        if not requested_pronouns:
+            await interaction.response.send_message(
                 "Available pronouns: {}".format(
                     ", ".join(f"`{pronoun}`" for pronoun in available_pronouns)
-                )
+                ),
+                ephemeral=True,
             )
             return
 
-        requested_pronouns = [arg.strip().lower() for arg in args]
-        if len(requested_pronouns) == 1 and requested_pronouns[0].lower() == "none":
-            await ctx.author.remove_roles(*self.get_author_pronouns(ctx).values())
-            await ctx.message.add_reaction("👍")
+        author_pronoun_roles = self.get_pronouns_roles(member.roles)
+
+        if "none" in requested_pronouns:
+            if len(requested_pronouns) > 1:
+                await interaction.response.send_message(
+                    "Use `none` on its own to clear your pronouns.",
+                    ephemeral=True,
+                )
+                return
+            if author_pronoun_roles:
+                await member.remove_roles(*author_pronoun_roles.values())
+            await interaction.response.send_message(
+                "Cleared your pronouns. 👍", ephemeral=True
+            )
             return
 
         target_pronouns = []
         unavailable_pronouns = []
 
-        # Check that the requested pronouns are available.
-        for pronouns in requested_pronouns:
-            target = available_pronouns.get(pronouns)
+        for pronoun in requested_pronouns:
+            target = available_pronouns.get(pronoun)
             if target is None:
-                unavailable_pronouns.append(pronouns)
+                unavailable_pronouns.append(pronoun)
             else:
                 target_pronouns.append(target)
 
         if unavailable_pronouns:
-            pronouns = ", ".join(f"`{pronoun}`" for pronoun in unavailable_pronouns)
-            await ctx.send(
+            await interaction.response.send_message(
                 "You've specified an unavailable pronoun. If you think this pronoun "
                 "should be available please message a moderator to get it added. "
                 "Available pronouns are: {}".format(
                     ", ".join(f"`{pronoun}`" for pronoun in available_pronouns)
-                )
+                ),
+                ephemeral=True,
             )
             return
 
-        # Give requested pronoun roles.
-        await ctx.author.add_roles(*target_pronouns)
+        await member.add_roles(*target_pronouns)
 
-        # Remove any pronoun roles that weren't specified.
-        roles_to_remove = set(self.get_author_pronouns(ctx).values())
+        roles_to_remove = set(author_pronoun_roles.values())
         roles_to_remove.difference_update(target_pronouns)
         if roles_to_remove:
-            await ctx.author.remove_roles(*roles_to_remove)
+            await member.remove_roles(*roles_to_remove)
 
-        await ctx.message.add_reaction("👍")
+        await interaction.response.send_message(
+            "Set your pronouns to {}. 👍".format(
+                ", ".join(f"`{p}`" for p in requested_pronouns)
+            ),
+            ephemeral=True,
+        )
+
+    @pronouns.autocomplete("pronoun1")
+    @pronouns.autocomplete("pronoun2")
+    @pronouns.autocomplete("pronoun3")
+    async def pronoun_autocomplete(
+        self, interaction: discord.Interaction, current: str
+    ):
+        current_lower = current.lower()
+        names = ["none"] + sorted(
+            self.get_pronouns_roles(interaction.guild.roles).keys()
+        )
+        matches = [n for n in names if current_lower in n]
+        return [app_commands.Choice(name=n, value=n) for n in matches[:25]]

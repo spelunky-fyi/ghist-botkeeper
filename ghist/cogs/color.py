@@ -1,14 +1,14 @@
 import colorsys
 import io
 from math import ceil
+from typing import Optional
 
 import discord
+from discord import app_commands
 from discord.ext import commands
 from ttf_opensans import opensans
 from PIL import Image, ImageDraw
 
-
-from ghist.checks import SUPPORT_CHANNELS, is_support_channel
 
 COLOR_PREFIX = "Color: "
 
@@ -54,7 +54,9 @@ def make_available_colors_image(roles):
             if len(max_column_widths) == column_idx:
                 max_column_widths.append(0)
 
-            width, height = IMG_FONT.getsize(role_name, None, None, None, 0)
+            left, top, right, bottom = IMG_FONT.getbbox(role_name)
+            width = right - left
+            height = bottom - top
             max_text_height = max(max_text_height, height)
             max_column_widths[column_idx] = max(max_column_widths[column_idx], width)
 
@@ -104,57 +106,69 @@ class Color(commands.Cog):
                 colors[role.name[len(COLOR_PREFIX) :].lower()] = role
         return colors
 
-    def get_guild_colors(self, ctx):
-        return self.get_colors_roles(ctx.guild.roles)
-
-    def get_author_colors(self, ctx):
-        return self.get_colors_roles(ctx.author.roles)
-
-    @commands.command(
-        aliases=["colour"],
-        help=(
-            "Set the color of your name.\n"
-            "`none` can be passed to clear your color.\n"
-            "Calling the command with no arguments will show available colors."
-        ),
-        brief="Set the color of your name.",
-        usage="color_name",
+    @app_commands.command(
+        name="color",
+        description="Set the color of your name. Omit to see available colors. Use `none` to clear.",
     )
-    @commands.check(is_support_channel)
-    async def color(self, ctx, *args):
-        guild_color_roles = self.get_guild_colors(ctx)
+    @app_commands.describe(
+        name="A color name from the available list, or `none` to clear."
+    )
+    async def color(
+        self, interaction: discord.Interaction, name: Optional[str] = None
+    ):
+        guild_color_roles = self.get_colors_roles(interaction.guild.roles)
+        member = interaction.user
 
-        # Check that the user passed a color at all
-        if not args:
+        if name is None:
+            await interaction.response.defer(ephemeral=True, thinking=True)
             img_file = make_available_colors_image(guild_color_roles)
-            await ctx.send(
-                "Available colors:", file=discord.File(img_file, "colors.png")
+            await interaction.followup.send(
+                "Available colors:",
+                file=discord.File(img_file, "colors.png"),
+                ephemeral=True,
             )
             return
 
-        requested_color = " ".join(args).strip().lower()
-        if requested_color.lower() == "none":
-            await ctx.author.remove_roles(*self.get_author_colors(ctx).values())
-            await ctx.message.add_reaction("👍")
+        requested_color = name.strip().lower()
+        author_color_roles = self.get_colors_roles(member.roles)
+
+        if requested_color == "none":
+            if author_color_roles:
+                await member.remove_roles(*author_color_roles.values())
+            await interaction.response.send_message(
+                "Cleared your color. 👍", ephemeral=True
+            )
             return
 
-        # Check that the requested color is available.
         target_role = guild_color_roles.get(requested_color)
         if target_role is None:
-            await ctx.send(
-                f"The color `{requested_color}` isn't available. Type `!color` to see available colors."
+            await interaction.response.send_message(
+                f"The color `{requested_color}` isn't available. "
+                "Use `/color` with no argument to see available colors.",
+                ephemeral=True,
             )
             return
 
-        # Give requested color role. We add the color first as small
-        # UI benefit so we don't see the color flash back to default color
-        # when changing colors.
-        await ctx.author.add_roles(target_role)
+        # Add the target color first so the user's color doesn't flash back to
+        # default during the swap.
+        await member.add_roles(target_role)
 
-        # Remove other color roles
-        roles_to_remove = set(self.get_author_colors(ctx).values())
+        roles_to_remove = set(author_color_roles.values())
         roles_to_remove.discard(target_role)
         if roles_to_remove:
-            await ctx.author.remove_roles(*roles_to_remove)
+            await member.remove_roles(*roles_to_remove)
 
-        await ctx.message.add_reaction("👍")
+        await interaction.response.send_message(
+            f"Set your color to `{requested_color}`. 👍", ephemeral=True
+        )
+
+    @color.autocomplete("name")
+    async def color_autocomplete(
+        self, interaction: discord.Interaction, current: str
+    ):
+        current_lower = current.lower()
+        names = ["none"] + sorted(
+            self.get_colors_roles(interaction.guild.roles).keys()
+        )
+        matches = [n for n in names if current_lower in n]
+        return [app_commands.Choice(name=n, value=n) for n in matches[:25]]
