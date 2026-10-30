@@ -102,6 +102,12 @@ class GhistBotkeeper(commands.Bot):
                     len(synced),
                     guild_id,
                 )
+
+            # Commands are registered per guild, so remove any global copies
+            # left over from earlier syncs to avoid duplicates.
+            self.tree.clear_commands(guild=None)
+            await self.tree.sync()
+            logging.info("Cleared global slash commands")
         else:
             synced = await self.tree.sync()
             logging.info(
