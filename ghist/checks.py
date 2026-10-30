@@ -33,3 +33,14 @@ async def not_support_channel(interaction: discord.Interaction) -> bool:
 
     channels = SUPPORT_CHANNELS.get(str(interaction.guild.id)) or []
     return str(interaction.channel_id) not in channels
+
+
+async def is_api_channel(interaction: discord.Interaction) -> bool:
+    if interaction.guild is None:
+        return False
+
+    # No channels configured means the command works everywhere
+    if not API_HELP_CHANNELS:
+        return True
+
+    return str(interaction.channel_id) in API_HELP_CHANNELS

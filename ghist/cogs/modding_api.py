@@ -1,14 +1,24 @@
+import asyncio
 import difflib
-from html.parser import HTMLParser
 import logging
+import time
+from html.parser import HTMLParser
+from typing import Optional
 
-from discord.ext import commands
 import aiohttp
+import discord
+from discord import app_commands
+from discord.ext import commands
 
-from ghist.checks import API_HELP_CHANNELS
+from ghist.checks import is_api_channel
+
+API_URL = "https://spelunky-fyi.github.io/overlunky/"
+CACHE_TTL = 60 * 60
+MAX_RESULTS = 5
+MAX_AUTOCOMPLETE = 25
 
 
-# Custom parser to isolate the list, find links, and extract their data
+# Collects {link text: href} for every link inside the element with target_id
 class LinkListParser(HTMLParser):
     def __init__(self, target_id):
         super().__init__()
@@ -22,136 +32,144 @@ class LinkListParser(HTMLParser):
     def handle_starttag(self, tag, attrs):
         attrs_dict = dict(attrs)
 
-        # Check if we entered the target list container
         if attrs_dict.get("id") == self.target_id:
             self.inside_target_list = True
 
         if self.inside_target_list:
             if tag in ("ul", "ol"):
                 self.list_depth += 1
-            # Capture the href attribute if we hit a link inside our list
             elif tag == "a":
                 self.current_href = attrs_dict.get("href", "")
-                self.current_text = []  # Reset text collector for this link
+                self.current_text = []
 
     def handle_endtag(self, tag):
         if self.inside_target_list:
             if tag == "a" and self.current_href is not None:
-                # Combine collected text fragments and pair with the link
                 link_text = "".join(self.current_text).strip()
                 if link_text:
                     self.result_dict[link_text] = self.current_href
-
-                # Reset link state
                 self.current_href = None
 
             elif tag in ("ul", "ol"):
                 self.list_depth -= 1
-                # Exit parsing state once we leave the primary parent list
+                # Stop once we leave the outermost list
                 if self.list_depth == 0:
                     self.inside_target_list = False
 
     def handle_data(self, data):
-        # Accumulate text only if we are currently inside an <a> tag within the target list
         if self.inside_target_list and self.current_href is not None:
             self.current_text.append(data)
+
+
+def parse_toc(html_content):
+    parser = LinkListParser(target_id="toc")
+    parser.feed(html_content)
+    return parser.result_dict
+
+
+def search(lookup, query):
+    query = query.strip().lower()
+    lowered = {name.lower(): name for name in lookup}
+
+    exact = []
+    prefix = []
+    partial = []
+    for lower_name, name in lowered.items():
+        if lower_name == query:
+            exact.append(name)
+        elif lower_name.startswith(query):
+            prefix.append(name)
+        elif query in lower_name:
+            partial.append(name)
+
+    results = exact + prefix + partial
+    if len(results) < MAX_RESULTS:
+        # Account for spelling mistakes
+        close = difflib.get_close_matches(query, lowered, n=MAX_RESULTS, cutoff=0.75)
+        results.extend(lowered[name] for name in close if lowered[name] not in results)
+
+    return results
+
+
+def format_link(name, href):
+    return f"[{name}](<{API_URL}{href}>)"
 
 
 class ModdingAPI(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(10))
+        self.lookup = {}
+        self.lookup_fetched_at = 0
+        self.lookup_lock = asyncio.Lock()
 
-    def is_in_allowed_channel():
-        async def predicate(ctx: commands.Context):
-            if ctx.guild is None:
-                return False
+    async def get_lookup(self):
+        async with self.lookup_lock:
+            if self.lookup and time.monotonic() - self.lookup_fetched_at < CACHE_TTL:
+                return self.lookup
 
-            if not API_HELP_CHANNELS:
-                return True
+            try:
+                async with aiohttp.ClientSession(
+                    timeout=aiohttp.ClientTimeout(total=10)
+                ) as session:
+                    async with session.get(API_URL) as response:
+                        response.raise_for_status()
+                        html_content = await response.text()
 
-            if ctx.channel.id in API_HELP_CHANNELS:
-                return True
+                lookup = await asyncio.to_thread(parse_toc, html_content)
+                if not lookup:
+                    raise ValueError("No table of contents found on modding API page")
+            except Exception:
+                logging.exception("Failed to fetch modding API page.")
+                # Fall back to stale results if we have them
+                return self.lookup
 
-            return False
+            self.lookup = lookup
+            self.lookup_fetched_at = time.monotonic()
+            return self.lookup
 
-        return commands.check(predicate)
+    @app_commands.command(
+        name="api",
+        description="Search the Overlunky/Playlunky Lua API. Omit to get a link to the docs.",
+    )
+    @app_commands.describe(query="A function, type, or enum name to search for.")
+    @app_commands.check(is_api_channel)
+    async def api(self, interaction: discord.Interaction, query: Optional[str] = None):
+        if not query:
+            await interaction.response.send_message(
+                f"[Overlunky/Playlunky Lua API](<{API_URL}>)"
+            )
+            return
+
+        await interaction.response.defer(thinking=True)
+
+        lookup = await self.get_lookup()
+        if not lookup:
+            await interaction.followup.send("Could not reach API page :(")
+            return
+
+        results = search(lookup, query)
+        if not results:
+            await interaction.followup.send("No results :(")
+            return
+
+        await interaction.followup.send(
+            "\n".join(format_link(name, lookup[name]) for name in results[:MAX_RESULTS])
+        )
+
+    @api.autocomplete("query")
+    async def api_autocomplete(
+        self, interaction: discord.Interaction, current: str
+    ) -> list[app_commands.Choice[str]]:
+        # Only use what's already cached; autocomplete must respond quickly
+        if not current or not self.lookup:
+            return []
+
+        return [
+            app_commands.Choice(name=name[:100], value=name[:100])
+            for name in search(self.lookup, current)[:MAX_AUTOCOMPLETE]
+        ]
 
     @commands.Cog.listener()
-    async def on_command_error(
-        self, ctx: commands.Context, error: commands.CommandError
-    ):
-        if isinstance(error, commands.CheckFailure):
-            # suppress console errors when the custom check fails
-            return
-
-        self.bot.dispatch("command_error", ctx, error)
-
-    @commands.command()
-    @is_in_allowed_channel()
-    async def api(self, ctx: commands.Context, *, search_string: str = None):
-        """Search Spelunky2 modding API"""
-        api_lookup: dict[str, str] = None
-        url = "https://spelunky-fyi.github.io/overlunky/"
-
-        if not search_string:
-            await ctx.reply(f"[Overlunky/Playlunky Lua API](<{url}>)")
-            return
-
-        try:
-            async with self.session.get(url) as response:
-                response.raise_for_status()
-                if response.status == 200:
-                    html_content = await response.text()
-                    if not html_content:
-                        logging.error("Received empty result from modding API page")
-                        await ctx.reply(
-                            "Received empty result from modding API page :("
-                        )
-                        return
-                    parser = LinkListParser(target_id="toc")
-                    parser.feed(html_content)
-                    api_lookup = parser.result_dict
-                else:
-                    logging.info(
-                        f"Modding API page returned status code: {response.status}"
-                    )
-                    await ctx.reply("Could not reach API page :(")
-                    return
-        except Exception:
-            logging.exception("Could not reach modding API page:")
-            await ctx.reply("Could not reach API page :(")
-        else:
-            if not api_lookup:
-                logging.error("Did not get lookup list from modding API page")
-                await ctx.reply("Could not reach API page :(")
-                return
-
-            api_results = []
-
-            for name, tag in api_lookup.items():
-                # exact
-                if search_string.lower() == name.lower():
-                    api_results.insert(0, f"[{name}](<{url}{tag}>)")
-
-                # partial
-                elif search_string.lower() in name.lower():
-                    api_results.append(f"[{name}](<{url}{tag}>)")
-
-                # add best matching ones (to account for spelling mistakes etc.)
-                else:
-                    # ndiff finds all additions (+) and subtractions (-)
-                    diffs = difflib.ndiff(search_string.lower(), name.lower())
-                    difference_count = sum(
-                        1
-                        for line in diffs
-                        if line.startswith("+") or line.startswith("-")
-                    )
-                    if difference_count < 4:
-                        api_results.append(f"[{name}](<{url}{tag}>)")
-
-            if not api_results:
-                await ctx.reply("No results :(")
-            else:
-                # give 5 maching results
-                await ctx.reply("\n".join(api_results[:5]))
+    async def on_ready(self):
+        # Warm the cache so autocomplete works right away
+        await self.get_lookup()

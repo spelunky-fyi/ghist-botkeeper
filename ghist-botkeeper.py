@@ -126,11 +126,10 @@ def main():
 
     intents = discord.Intents.default()
     intents.members = True
-    intents.message_content = True
 
     ghist = GhistBotkeeper(
         config=config,
-        command_prefix=commands.when_mentioned_or("?"),
+        command_prefix=commands.when_mentioned,
         help_command=None,
         intents=intents,
         tree_cls=GhistCommandTree,
