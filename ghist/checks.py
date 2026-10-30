@@ -12,6 +12,8 @@ DOGS_CHANNELS = set()
 
 DAILY_CHANNELS = set()
 
+API_HELP_CHANNELS = set()
+
 
 async def globally_block_dms(interaction: discord.Interaction) -> bool:
     return interaction.guild is not None

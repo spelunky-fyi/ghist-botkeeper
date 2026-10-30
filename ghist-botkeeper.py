@@ -17,6 +17,7 @@ from ghist.checks import (
     SUPPORT_CHANNELS,
     DOGS_CHANNELS,
     DAILY_CHANNELS,
+    API_HELP_CHANNELS,
     globally_block_dms,
 )
 from ghist.cogs.color import Color
@@ -26,6 +27,7 @@ from ghist.cogs.mr_sync import MossrankingSync
 from ghist.cogs.pronouns import Pronouns
 from ghist.cogs.ushabti import Ushabti
 from ghist.cogs.daily_channel_titles import DailyChannelTitles
+from ghist.cogs.modding_api import ModdingAPI
 
 
 TOKEN = os.environ["GHIST_BOT_TOKEN"]
@@ -40,6 +42,7 @@ def parse_config(config_path):
 
     DOGS_CHANNELS.update(set(data.get("dogs-channels", [])))
     DAILY_CHANNELS.update(set(data.get("daily-channels", [])))
+    API_HELP_CHANNELS.update(set(data.get("api-channels", [])))
 
     return data
 
@@ -70,6 +73,7 @@ class GhistBotkeeper(commands.Bot):
         await self.add_cog(Ushabti(self))
         await self.add_cog(Spelunkicon(self))
         await self.add_cog(DailyChannelTitles(self))
+        await self.add_cog(ModdingAPI(self))
 
         if self.config.get("mr-sync"):
             await self.add_cog(
@@ -122,10 +126,11 @@ def main():
 
     intents = discord.Intents.default()
     intents.members = True
+    intents.message_content = True
 
     ghist = GhistBotkeeper(
         config=config,
-        command_prefix=commands.when_mentioned,
+        command_prefix=commands.when_mentioned_or("?"),
         help_command=None,
         intents=intents,
         tree_cls=GhistCommandTree,
