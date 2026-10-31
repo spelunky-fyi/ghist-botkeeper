@@ -131,6 +131,8 @@ class ModdingAPI(commands.Cog):
         name="api",
         description="Search the Overlunky/Playlunky Lua API. Omit to get a link to the docs.",
     )
+    @app_commands.guild_only()
+    @app_commands.guild_install()
     @app_commands.describe(query="A function, type, or enum name to search for.")
     @app_commands.check(is_api_channel)
     async def api(self, interaction: discord.Interaction, query: Optional[str] = None):
