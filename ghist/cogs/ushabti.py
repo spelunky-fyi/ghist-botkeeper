@@ -23,6 +23,8 @@ class Ushabti(commands.Cog):
         name="ushabti",
         description="Display an ushabti. Any unspecified slots are picked at random.",
     )
+    @app_commands.guild_only()
+    @app_commands.guild_install()
     @app_commands.describe(
         style="The ushabti's style.",
         material="The ushabti's material.",

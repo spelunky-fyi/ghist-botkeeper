@@ -110,6 +110,8 @@ class Color(commands.Cog):
         name="color",
         description="Set the color of your name. Omit to see available colors. Use `none` to clear.",
     )
+    @app_commands.guild_only()
+    @app_commands.guild_install()
     @app_commands.describe(
         name="A color name from the available list, or `none` to clear."
     )

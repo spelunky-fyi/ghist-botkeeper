@@ -42,6 +42,8 @@ class Spelunkicon(commands.Cog):
         name="spelunkicon",
         description="Generate a spelunkicon based on your Discord ID (or another word).",
     )
+    @app_commands.guild_only()
+    @app_commands.guild_install()
     @app_commands.describe(
         size="Icon size.",
         random_word="Generate a random word.",

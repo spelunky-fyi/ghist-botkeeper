@@ -23,6 +23,8 @@ class Pronouns(commands.Cog):
         name="pronouns",
         description="Set the pronouns you prefer. Omit to see available. Use `none` to clear.",
     )
+    @app_commands.guild_only()
+    @app_commands.guild_install()
     @app_commands.describe(
         pronoun1="A pronoun, or `none` to clear all.",
         pronoun2="An optional second pronoun.",
